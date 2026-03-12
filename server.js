@@ -16,7 +16,7 @@ let table = [];
 let turnIdx = 0;
 let roundStarter = 0;
 let bidsReceived = 0;
-let tricksPlayed = 0;
+let tricksPlayed = 0; 
 
 io.on('connection', (socket) => {
     socket.on('joinGame', (name) => {
@@ -63,6 +63,12 @@ io.on('connection', (socket) => {
             }
         }
     });
+
+    socket.on('disconnect', () => {
+        players = players.filter(p => p.id !== socket.id);
+        if (players.length > 0 && !players.find(p => p.isHost)) players[0].isHost = true;
+        io.emit('updatePlayers', players);
+    });
 });
 
 function startNewRound() {
@@ -79,8 +85,7 @@ function startNewRound() {
         p.won = 0;
         p.bidDone = false;
         for(let i=0; i<currentCards; i++) p.hand.push(deck.pop());
-        // Enviamos o currentCards para o cliente saber se deve mostrar a face ou não
-        io.to(p.id).emit('receiveHand', { hand: p.hand, round: currentCards });
+        io.to(p.id).emit('receiveHand', p.hand);
     });
 
     turnIdx = roundStarter;
