@@ -16,6 +16,7 @@ let table = [];
 let turnIdx = 0;
 let roundStarter = 0;
 let bidsReceived = 0;
+let tricksPlayed = 0;
 
 io.on('connection', (socket) => {
     socket.on('joinGame', (name) => {
@@ -62,17 +63,12 @@ io.on('connection', (socket) => {
             }
         }
     });
-
-    socket.on('disconnect', () => {
-        players = players.filter(p => p.id !== socket.id);
-        if (players.length > 0 && !players.find(p => p.isHost)) players[0].isHost = true;
-        io.emit('updatePlayers', players);
-    });
 });
 
 function startNewRound() {
     gameStarted = true;
     bidsReceived = 0;
+    tricksPlayed = 0;
     table = [];
     let deck = [];
     for(let s of suits) for(let v of values) deck.push({s, v, id: v+s});
@@ -83,7 +79,8 @@ function startNewRound() {
         p.won = 0;
         p.bidDone = false;
         for(let i=0; i<currentCards; i++) p.hand.push(deck.pop());
-        io.to(p.id).emit('receiveHand', p.hand);
+        // Enviamos o currentCards para o cliente saber se deve mostrar a face ou não
+        io.to(p.id).emit('receiveHand', { hand: p.hand, round: currentCards });
     });
 
     turnIdx = roundStarter;
@@ -102,7 +99,6 @@ function nextTurn() {
 }
 
 function resolveTrick() {
-    // Lógica de quem ganhou a vaza (Manilhas inclusas)
     let winner = table[0];
     table.forEach(t => {
         let p1 = power[t.card.id] || power[t.card.v];
@@ -112,12 +108,14 @@ function resolveTrick() {
 
     const pWinner = players.find(p => p.id === winner.owner);
     pWinner.won++;
+    tricksPlayed++;
     io.emit('statusUpdate', `${pWinner.name} venceu a vaza!`);
+    io.emit('updatePlayers', players);
     
     setTimeout(() => {
         table = [];
         io.emit('clearTable');
-        if (pWinner.hand.length === 0 && players[0].hand.length === 0) { // Bug fix: check if round ended
+        if (tricksPlayed === currentCards) {
              endRound();
         } else {
             turnIdx = players.indexOf(pWinner);
