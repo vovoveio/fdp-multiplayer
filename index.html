@@ -1,48 +1,182 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FDP - Feedback Edition Online</title>
     <script src="/socket.io/socket.io.js"></script>
-</head>
-<body>
-    <div id="login">
-        <input id="name" placeholder="Seu nome">
-        <button onclick="join()">Entrar</button>
-    </div>
-
-    <div id="game" style="display:none;">
-        <div id="status-bar">Aguardando...</div>
-        <div id="host-controls" style="display:none;">
-            <button onclick="socket.emit('hostStartGame')">INICIAR PARTIDA</button>
-        </div>
-        <div id="my-hand" style="display:flex;"></div>
-    </div>
-
-    <script>
-        const socket = io();
-        function join() {
-            const name = document.getElementById('name').value;
-            socket.emit('joinGame', name);
-            document.getElementById('login').style.display = 'none';
-            document.getElementById('game').style.display = 'block';
+    <style>
+        /* MANTIVE TODO O SEU CSS ORIGINAL IGUALZINHO */
+        :root {
+            --bg-gradient: radial-gradient(circle, #1a472a 0%, #05140a 100%);
+            --gold: #ffd700;
+            --card-back: repeating-linear-gradient(45deg, #1a2a6c, #1a2a6c 10px, #b21f1f 10px, #b21f1f 20px);
         }
 
-        socket.on('updatePlayers', (players) => {
-            const me = players.find(p => p.id === socket.id);
-            if (me?.isHost) document.getElementById('host-controls').style.display = 'block';
+        body { font-family: 'Segoe UI', sans-serif; background: #050f09; color: white; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 240px; background: rgba(0,0,0,0.9); border-right: 2px solid var(--gold); display: flex; flex-direction: column; z-index: 100; }
+        #scoreboard { padding: 15px; border-bottom: 1px solid #333; }
+        #chat-box { flex-grow: 1; padding: 10px; font-size: 13px; overflow-y: auto; background: #000; color: #aaa; }
+        #main-game { flex-grow: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
+        #status-bar { width: 100%; background: rgba(0,0,0,0.8); padding: 15px; text-align: center; font-size: 18px; color: var(--gold); font-weight: bold; min-height: 25px; }
+        #game-board { position: relative; width: 90%; max-width: 900px; height: 70vh; margin: 20px; border: 12px solid #3d2b1f; border-radius: 180px; background: var(--bg-gradient); box-shadow: inset 0 0 100px #000; }
+        .player-slot { position: absolute; width: 180px; text-align: center; padding: 10px; border-radius: 15px; transition: all 0.3s ease; background: rgba(0,0,0,0.4); }
+        .active-turn { background: rgba(255, 215, 0, 0.2); box-shadow: 0 0 20px var(--gold); transform: scale(1.1) translateX(-50%) !important; z-index: 10; }
+        /* Ajuste fino para os slots com escala */
+        #p1 { bottom: 10px; left: 50%; transform: translateX(-50%); }
+        #p2 { right: 10px; top: 50%; transform: translateY(-50%); }
+        #p3 { top: 10px; left: 50%; transform: translateX(-50%); }
+        #p4 { left: 10px; top: 50%; transform: translateY(-50%); }
+        .info-box { font-size: 12px; margin-bottom: 5px; }
+        .bet-done { color: #00ff00; font-weight: bold; margin-left: 5px; }
+        .hand { display: flex; justify-content: center; height: 90px; perspective: 1000px; }
+        .card { width: 60px; height: 85px; background: white; border-radius: 6px; color: #222; position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); cursor: pointer; transition: transform 0.2s; flex-shrink: 0; border: 1px solid #999; }
+        .hand .card:not(:first-child) { margin-left: -35px; }
+        .hand .card:hover { transform: translateY(-15px); z-index: 100 !important; }
+        .card.red { color: #cc0000; }
+        .card.hidden-back { background: var(--card-back); border: 2px solid white; }
+        .card .rank { position: absolute; top: 2px; left: 5px; font-size: 16px; font-weight: bold; }
+        .card .center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; }
+        .card .suit-mini { position: absolute; bottom: 2px; right: 5px; font-size: 14px; }
+        #table-area { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 400px; height: 200px; display: flex; justify-content: center; align-items: center; }
+        .played-card { position: absolute; animation: throwCard 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards; }
+        @keyframes throwCard { 0% { transform: scale(0.2) rotate(0deg); opacity: 0; } 100% { transform: scale(1) rotate(var(--rot)); opacity: 1; } }
+        #controls { padding: 10px; z-index: 100; }
+        button { padding: 12px 25px; background: var(--gold); border: none; font-weight: bold; cursor: pointer; border-radius: 8px; box-shadow: 0 4px #b89b00; }
+        .bet-btn { margin: 3px; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div id="scoreboard">
+        <h3 style="margin:0; color:var(--gold)">🏆 Placar</h3>
+        <div id="score-list" style="margin-top:10px"></div>
+    </div>
+    <div id="chat-box">Conectando...</div>
+</div>
+
+<div id="main-game">
+    <div id="status-bar">Aguardando jogadores...</div>
+    <div id="game-board">
+        <div id="p1" class="player-slot"><div class="info-box" id="i1"></div><div class="hand" id="h1"></div></div>
+        <div id="p2" class="player-slot"><div class="info-box" id="i2"></div><div class="hand" id="h2"></div></div>
+        <div id="p3" class="player-slot"><div class="info-box" id="i3"></div><div class="hand" id="h3"></div></div>
+        <div id="p4" class="player-slot"><div class="info-box" id="i4"></div><div class="hand" id="h4"></div></div>
+        <div id="table-area"></div>
+    </div>
+    <div id="controls">
+        <button id="start-btn" style="display:none" onclick="socket.emit('startGame')">Começar Partida</button>
+        <div id="bet-zone"></div>
+    </div>
+</div>
+
+<script>
+    const socket = io();
+    const au = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Suas funções de SFX originais
+    function sfx(f, t, d) {
+        const o = au.createOscillator(); const g = au.createGain();
+        o.type = t; o.frequency.value = f; g.gain.exponentialRampToValueAtTime(0.0001, au.currentTime + d);
+        o.connect(g); g.connect(au.destination); o.start(); o.stop(au.currentTime + d);
+    }
+
+    let myId = null;
+    let players = [];
+    let tableCards = [];
+
+    // ENTRAR NO JOGO
+    window.onload = () => {
+        const nome = prompt("Qual seu nome?") || "Jogador";
+        socket.emit('joinGame', nome);
+    };
+
+    socket.on('connect', () => { myId = socket.id; });
+
+    // ATUALIZAR JOGADORES (Sincroniza a posição na mesa)
+    socket.on('updatePlayers', (serverPlayers) => {
+        players = serverPlayers;
+        const meIdx = players.findIndex(p => p.id === myId);
+        
+        // Renderiza o placar lateral
+        const sl = document.getElementById('score-list');
+        sl.innerHTML = players.map(p => `
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <span>${p.isHost ? '👑' : ''} ${p.name}</span> <b>${p.lives}❤️</b>
+            </div>`).join('');
+
+        // Posiciona cada jogador na mesa (você sempre no p1)
+        players.forEach((p, i) => {
+            // Lógica para girar a mesa: (i - meIdx + 4) % 4
+            let pos = (i - meIdx + 4) % 4 + 1;
+            const info = document.getElementById(`i${pos}`);
+            if(info) {
+                info.innerHTML = `<b>${p.name}</b> ${p.bidDone ? '✅' : ''}<br>
+                                 <span style="color:#ff5555">❤️ ${p.lives}</span> | Fêz: ${p.won || 0}`;
+            }
         });
 
-        socket.on('receiveHand', (hand) => {
-            const handDiv = document.getElementById('my-hand');
-            handDiv.innerHTML = '';
-            hand.forEach(card => {
-                const div = document.createElement('div');
-                div.style.border = "1px solid black";
-                div.style.padding = "20px";
-                div.innerText = card.v + card.s;
-                handDiv.appendChild(div);
-            });
-            document.getElementById('status-bar').innerText = "Suas cartas:";
+        // Mostra botão start só para o Host
+        const me = players[meIdx];
+        document.getElementById('start-btn').style.display = (me && me.isHost) ? 'block' : 'none';
+    });
+
+    // RECEBER CARTAS
+    socket.on('receiveHand', (hand) => {
+        const h1 = document.getElementById('h1');
+        h1.innerHTML = '';
+        hand.forEach((c, idx) => {
+            const el = document.createElement('div');
+            const isRed = (c.s === '♥' || c.s === '♦');
+            el.className = `card ${isRed ? 'red' : ''}`;
+            el.innerHTML = `<div class="rank">${c.v}</div><div class="center">${c.s}</div><div class="suit-mini">${c.s}</div>`;
+            el.onclick = () => {
+                socket.emit('playCard', {card: c, index: idx});
+                h1.removeChild(el); // Remove localmente para feedback instantâneo
+            };
+            h1.appendChild(el);
         });
-    </script>
+        sfx(400, 'sine', 0.2);
+    });
+
+    // STATUS E TURNOS
+    socket.on('statusUpdate', (msg) => {
+        document.getElementById('status-bar').innerText = msg;
+    });
+
+    // ANIMAÇÃO DE CARTA NA MESA (O ponto alto do seu código!)
+    socket.on('cardPlayed', (data) => {
+        const area = document.getElementById('table-area');
+        const el = document.createElement('div');
+        const isRed = (data.card.s === '♥' || data.card.s === '♦');
+        el.className = `card played-card ${isRed ? 'red' : ''}`;
+        el.style.setProperty('--rot', `${Math.random()*20 - 10}deg`);
+        el.innerHTML = `<div class="rank">${data.card.v}</div><div class="center">${data.card.s}</div><div class="suit-mini">${data.card.s}</div>`;
+        area.appendChild(el);
+        sfx(600, 'sine', 0.1);
+    });
+
+    socket.on('clearTable', () => {
+        document.getElementById('table-area').innerHTML = '';
+    });
+
+    // PEDIR APOSTA (Abre seus botões originais)
+    socket.on('requestBid', (data) => {
+        const zone = document.getElementById('bet-zone');
+        zone.innerHTML = '';
+        for(let i=0; i<=data.max; i++) {
+            if(i === data.forbidden) continue;
+            let b = document.createElement('button');
+            b.className = 'bet-btn';
+            b.innerText = i;
+            b.onclick = () => { 
+                socket.emit('submitBid', i); 
+                zone.innerHTML = ''; 
+            };
+            zone.appendChild(b);
+        }
+    });
+</script>
 </body>
 </html>
