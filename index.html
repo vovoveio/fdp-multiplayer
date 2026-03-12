@@ -1,28 +1,48 @@
-<script>
-    const socket = io();
-    let isHost = false;
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div id="login">
+        <input id="name" placeholder="Seu nome">
+        <button onclick="join()">Entrar</button>
+    </div>
 
-    socket.on('updatePlayers', (serverPlayers) => {
-        const p = serverPlayers.find(x => x.id === socket.id);
-        if (p && p.isHost) {
-            isHost = true;
-            document.getElementById('host-controls').style.display = 'block';
+    <div id="game" style="display:none;">
+        <div id="status-bar">Aguardando...</div>
+        <div id="host-controls" style="display:none;">
+            <button onclick="socket.emit('hostStartGame')">INICIAR PARTIDA</button>
+        </div>
+        <div id="my-hand" style="display:flex;"></div>
+    </div>
+
+    <script>
+        const socket = io();
+        function join() {
+            const name = document.getElementById('name').value;
+            socket.emit('joinGame', name);
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
         }
-        // ... resto da renderização do placar ...
-    });
 
-    function hostStart() {
-        socket.emit('hostStartGame');
-    }
+        socket.on('updatePlayers', (players) => {
+            const me = players.find(p => p.id === socket.id);
+            if (me?.isHost) document.getElementById('host-controls').style.display = 'block';
+        });
 
-    // Recebendo as cartas reais do servidor
-    socket.on('receiveHand', (hand) => {
-        myHand = hand;
-        renderMyHand();
-        document.getElementById('status-bar').innerText = "Cartas recebidas! Faça sua aposta.";
-    });
-</script>
-
-<div id="host-controls" style="display:none; padding: 10px;">
-    <button onclick="hostStart()" style="background: #28a745;">INICIAR PARTIDA (HOST)</button>
-</div>
+        socket.on('receiveHand', (hand) => {
+            const handDiv = document.getElementById('my-hand');
+            handDiv.innerHTML = '';
+            hand.forEach(card => {
+                const div = document.createElement('div');
+                div.style.border = "1px solid black";
+                div.style.padding = "20px";
+                div.innerText = card.v + card.s;
+                handDiv.appendChild(div);
+            });
+            document.getElementById('status-bar').innerText = "Suas cartas:";
+        });
+    </script>
+</body>
+</html>
