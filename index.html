@@ -40,10 +40,7 @@
     </style>
 </head>
 <body>
-<div id="sidebar">
-    <div id="scoreboard"><h3 style="margin:0; color:var(--gold)">🏆 Placar</h3><div id="score-list" style="margin-top:10px"></div></div>
-    <div id="chat-box"></div>
-</div>
+<div id="sidebar"><div id="scoreboard"><h3 style="margin:0; color:var(--gold)">🏆 Placar</h3><div id="score-list" style="margin-top:10px"></div></div><div id="chat-box"></div></div>
 <div id="main-game">
     <div id="status-bar">Aguardando início...</div>
     <div id="game-board">
@@ -53,17 +50,21 @@
         <div id="p4" class="player-slot"><div class="info-box" id="i4"></div><div class="hand" id="h4"></div></div>
         <div id="table-area"></div>
     </div>
-    <div id="controls">
-        <button id="start-btn" onclick="startGame()">Começar Partida</button>
-        <div id="bet-zone"></div>
-    </div>
+    <div id="controls"><button id="start-btn" onclick="startGame()">Começar Partida</button><div id="bet-zone"></div></div>
 </div>
 
 <script>
     const socket = io();
+    // A cada jogada ou aposta, enviamos o estado pelo socket
+    function emitAction(type, data) { socket.emit('gameAction', { type, data }); }
+    
+    // Escuta jogadas dos amigos
+    socket.on('remoteAction', (msg) => {
+        if(msg.type === 'playCard') { /* Atualiza tableCards e renderTable() aqui */ }
+    });
+
     const au = new (window.AudioContext || window.webkitAudioContext)();
     function sfx(f, t, d) { const o = au.createOscillator(); const g = au.createGain(); o.type = t; o.frequency.value = f; g.gain.exponentialRampToValueAtTime(0.0001, au.currentTime + d); o.connect(g); g.connect(au.destination); o.start(); o.stop(au.currentTime + d); }
-
     const suits = ['♣', '♥', '♠', '♦'];
     const values = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'];
     const power = {'4♣':100,'7♥':99,'A♠':98,'7♦':97,'3':10,'2':9,'A':8,'K':7,'J':6,'Q':5,'7':4,'6':3,'5':2,'4':1};
@@ -77,9 +78,7 @@
 
     function updateStatus(m) { document.getElementById('status-bar').innerText = m; }
     function highlightPlayer(id) { document.querySelectorAll('.player-slot').forEach(s => s.classList.remove('active-turn')); if(id !== null) document.getElementById(`p${id+1}`).classList.add('active-turn'); }
-
     async function startGame() { document.getElementById('start-btn').style.display = 'none'; roundStarter = Math.floor(Math.random() * 4); gameLoop(); }
-
     async function gameLoop() {
         if (currentCards > 10) return updateStatus("FIM DO JOGO!");
         players.forEach(p => { p.hand = []; p.bid = 0; p.won = 0; p.hasBetted = false; });
@@ -91,7 +90,6 @@
         turnStarter = roundStarter; render(); await handleBids(); await handleTricks();
         roundStarter = (roundStarter + 1) % 4; currentCards++; gameLoop();
     }
-
     async function handleBids() {
         let bidder = roundStarter; let sum = 0; let active = players.filter(p => p.lives > 0).length;
         for (let i=0; i < active; i++) {
@@ -103,9 +101,7 @@
         }
         highlightPlayer(null);
     }
-
     function askBid(f) { return new Promise(res => { const zone = document.getElementById('bet-zone'); zone.innerHTML = ''; for(let i=0; i<=currentCards; i++) { if(i===f) continue; let b = document.createElement('button'); b.className = 'bet-btn'; b.innerText = i; b.onclick = () => { zone.innerHTML=''; res(i); }; zone.appendChild(b); } }); }
-
     async function handleTricks() {
         for(let t=0; t<currentCards; t++) {
             tableCards = []; let pIdx = turnStarter;
@@ -124,7 +120,6 @@
         }
         await endRound();
     }
-
     function waitCard() { return new Promise(res => { const cards = document.querySelectorAll('#h1 .card'); cards.forEach((c, i) => { c.onclick = () => { res(players[0].hand.splice(i,1)[0]); }; }); }); }
     function calcWinner(list) { let sc = list.map(x => ({...x, pwr: power[x.card.id] || power[x.card.v]})); let counts = {}; sc.forEach(s => counts[s.pwr] = (counts[s.pwr] || 0) + 1); let valid = sc.filter(s => counts[s.pwr] === 1); if (valid.length === 0) { let max = Math.max(...sc.map(s => s.pwr)); let ties = sc.filter(s => s.pwr === max); const suitsP = {'♣':4,'♥':3,'♠':2,'♦':1}; return ties.sort((a,b) => suitsP[b.card.s] - suitsP[a.card.s])[0].owner; } return valid.sort((a,b) => b.pwr - a.pwr)[0].owner; }
     async function endRound() { players.forEach(p => { if(p.lives > 0 && p.bid !== p.won) p.lives--; }); render(); updateStatus("Fim da rodada!"); await new Promise(r => setTimeout(r, 2000)); }
