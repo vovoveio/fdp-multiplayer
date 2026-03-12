@@ -2,67 +2,79 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>FDP Online</title>
+    <title>FDP - Online Edition</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        /* Mantenha seu CSS original aqui */
-        .card { width: 60px; height: 85px; background: white; border-radius: 6px; display: inline-block; border: 1px solid #999; }
-        .hidden-back { background: repeating-linear-gradient(45deg, #1a2a6c, #1a2a6c 10px, #b21f1f 10px, #b21f1f 20px); }
-        .red { color: red; }
+        /* [MANTER TODO O SEU CSS ORIGINAL AQUI] */
+        :root { --bg-gradient: radial-gradient(circle, #1a472a 0%, #05140a 100%); --gold: #ffd700; --card-back: repeating-linear-gradient(45deg, #1a2a6c, #1a2a6c 10px, #b21f1f 10px, #b21f1f 20px); }
+        body { font-family: 'Segoe UI', sans-serif; background: #050f09; color: white; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 240px; background: rgba(0,0,0,0.9); border-right: 2px solid var(--gold); display: flex; flex-direction: column; z-index: 100; }
+        #main-game { flex-grow: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
+        #status-bar { width: 100%; background: rgba(0,0,0,0.8); padding: 15px; text-align: center; font-size: 18px; color: var(--gold); font-weight: bold; }
+        #game-board { position: relative; width: 90%; max-width: 900px; height: 70vh; margin: 20px; border: 12px solid #3d2b1f; border-radius: 180px; background: var(--bg-gradient); }
+        .card { width: 60px; height: 85px; background: white; border-radius: 6px; color: #222; position: relative; display: inline-block; }
+        .hidden-back { background: var(--card-back); border: 2px solid white; }
     </style>
 </head>
 <body>
-    <div id="status-bar">Aguardando...</div>
-    <div id="h1"></div>
-    <div id="table-area"></div>
-    <button id="start-btn" onclick="socket.emit('startGame')" style="display:none">Começar</button>
+
+<div id="sidebar">
+    <div id="scoreboard"><h3>🏆 Placar</h3><div id="score-list"></div></div>
+</div>
+
+<div id="main-game">
+    <div id="status-bar">Conectando ao jogo...</div>
+    <div id="game-board">
+        <div id="h1" class="hand"></div> <div id="table-area"></div>
+    </div>
+    <button id="start-btn" onclick="socket.emit('startGame')" style="display:none">Começar Partida</button>
     <div id="bet-zone"></div>
+</div>
 
-    <script>
-        const socket = io();
-        let currentCards = 1;
+<script>
+    const socket = io();
+    const name = prompt("Qual seu nome?") || "Jogador";
+    socket.emit('joinGame', name);
 
-        window.onload = () => { socket.emit('joinGame', prompt("Nome:") || "Jogador"); };
+    // Atualiza o placar e estado quando o servidor avisa
+    socket.on('updatePlayers', (players) => {
+        const me = players.find(p => p.id === socket.id);
+        if(me && me.isHost) document.getElementById('start-btn').style.display = 'block';
+        
+        const sl = document.getElementById('score-list');
+        sl.innerHTML = players.map(p => `<div>${p.name}: ${p.lives}❤️</div>`).join('');
+    });
 
-        socket.on('updatePlayers', (ps) => {
-            const me = ps.find(p => p.id === socket.id);
-            if(me && me.isHost) document.getElementById('start-btn').style.display = 'block';
-        });
-
-        socket.on('receiveHand', (data) => {
-            currentCards = data.round;
-            const h1 = document.getElementById('h1');
-            h1.innerHTML = '';
-            data.hand.forEach(c => {
-                const el = document.createElement('div');
-                // LÓGICA: Se rodada 1, mostra a face. Se não, oculta (ou inverta se quiser).
-                const showFace = (currentCards === 1);
-                el.className = `card ${showFace ? '' : 'hidden-back'} ${(c.s==='♥'||c.s==='♦') ? 'red' : ''}`;
-                if(showFace) el.innerHTML = `${c.v}${c.s}`;
-                el.onclick = () => { socket.emit('playCard', {card: c}); el.remove(); };
-                h1.appendChild(el);
-            });
-        });
-
-        socket.on('cardPlayed', (data) => {
-            // Desenha a carta na mesa
+    socket.on('receiveHand', (hand) => {
+        const h1 = document.getElementById('h1');
+        h1.innerHTML = '';
+        hand.forEach(c => {
             const el = document.createElement('div');
             el.className = 'card';
-            el.innerHTML = `${data.card.v}${data.card.s}`;
-            document.getElementById('table-area').appendChild(el);
+            el.innerHTML = `${c.v}${c.s}`;
+            el.onclick = () => socket.emit('playCard', { card: c });
+            h1.appendChild(el);
         });
+    });
 
-        socket.on('requestBid', (data) => {
-            const bz = document.getElementById('bet-zone'); bz.innerHTML = '';
-            for(let i=0; i<=data.max; i++) {
-                let b = document.createElement('button'); b.innerText = i;
-                b.onclick = () => { socket.emit('submitBid', i); bz.innerHTML = ''; };
-                bz.appendChild(b);
-            }
-        });
+    socket.on('requestBid', (data) => {
+        const bz = document.getElementById('bet-zone'); bz.innerHTML = '';
+        for(let i=0; i<=data.max; i++) {
+            let b = document.createElement('button'); b.innerText = i;
+            b.onclick = () => { socket.emit('submitBid', i); bz.innerHTML = ''; };
+            bz.appendChild(b);
+        }
+    });
 
-        socket.on('clearTable', () => { document.getElementById('table-area').innerHTML = ''; });
-        socket.on('statusUpdate', (m) => { document.getElementById('status-bar').innerText = m; });
-    </script>
+    socket.on('cardPlayed', (data) => {
+        const el = document.createElement('div');
+        el.className = 'card';
+        el.innerHTML = `${data.card.v}${data.card.s}`;
+        document.getElementById('table-area').appendChild(el);
+    });
+
+    socket.on('clearTable', () => document.getElementById('table-area').innerHTML = '');
+    socket.on('statusUpdate', (m) => document.getElementById('status-bar').innerText = m);
+</script>
 </body>
 </html>
