@@ -2,65 +2,54 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>FDP - Feedback Edition</title>
+    <title>FDP - Online Edition</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root { --bg-gradient: radial-gradient(circle, #1a472a 0%, #05140a 100%); --gold: #ffd700; --card-back: repeating-linear-gradient(45deg, #1a2a6c, #1a2a6c 10px, #b21f1f 10px, #b21f1f 20px); }
         body { font-family: 'Segoe UI', sans-serif; background: #050f09; color: white; margin: 0; display: flex; height: 100vh; overflow: hidden; }
-        #sidebar { width: 240px; background: rgba(0,0,0,0.9); border-right: 2px solid var(--gold); display: flex; flex-direction: column; z-index: 100; }
-        #scoreboard { padding: 15px; border-bottom: 1px solid #333; }
-        #chat-box { flex-grow: 1; padding: 10px; font-size: 13px; overflow-y: auto; background: #000; color: #aaa; }
+        #sidebar { width: 240px; background: rgba(0,0,0,0.9); border-right: 2px solid var(--gold); }
         #main-game { flex-grow: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
-        #status-bar { width: 100%; background: rgba(0,0,0,0.8); padding: 15px; text-align: center; font-size: 18px; color: var(--gold); font-weight: bold; min-height: 25px; }
-        #game-board { position: relative; width: 90%; max-width: 900px; height: 70vh; margin: 20px; border: 12px solid #3d2b1f; border-radius: 180px; background: var(--bg-gradient); box-shadow: inset 0 0 100px #000; }
-        .card { width: 60px; height: 85px; background: white; border-radius: 6px; color: #222; position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); cursor: pointer; border: 1px solid #999; display: inline-block; }
-        .card.red { color: #cc0000; }
+        #status-bar { width: 100%; background: rgba(0,0,0,0.8); padding: 15px; text-align: center; font-size: 18px; color: var(--gold); font-weight: bold; }
+        #game-board { position: relative; width: 90%; max-width: 900px; height: 70vh; margin: 20px; border: 12px solid #3d2b1f; border-radius: 180px; background: var(--bg-gradient); }
+        .card { width: 60px; height: 85px; background: white; border-radius: 6px; color: #222; position: relative; display: inline-block; margin: 5px; cursor: pointer; }
+        .hidden-back { background: var(--card-back); border: 2px solid white; color: transparent; }
         .card .rank { position: absolute; top: 2px; left: 5px; font-size: 16px; font-weight: bold; }
         .card .center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; }
         .card .suit-mini { position: absolute; bottom: 2px; right: 5px; font-size: 14px; }
-        #table-area { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 400px; height: 200px; display: flex; justify-content: center; align-items: center; }
-        #controls { padding: 10px; z-index: 100; }
-        button { padding: 12px 25px; background: var(--gold); border: none; font-weight: bold; cursor: pointer; border-radius: 8px; box-shadow: 0 4px #b89b00; }
+        #table-area { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
     </style>
 </head>
 <body>
-
-<div id="sidebar">
-    <div id="scoreboard"><h3 style="margin:0; color:var(--gold)">🏆 Placar</h3><div id="score-list" style="margin-top:10px"></div></div>
-    <div id="chat-box"></div>
-</div>
-
+<div id="sidebar"><div id="score-list"></div></div>
 <div id="main-game">
-    <div id="status-bar">Aguardando início...</div>
+    <div id="status-bar">Aguardando...</div>
     <div id="game-board">
         <div id="h1" style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); display:flex;"></div>
         <div id="table-area"></div>
     </div>
-    <div id="controls">
-        <button id="start-btn" onclick="socket.emit('startGame')" style="display:none">Começar Partida</button>
-        <div id="bet-zone"></div>
-    </div>
+    <button id="start-btn" onclick="socket.emit('startGame')" style="display:none">Começar</button>
+    <div id="bet-zone"></div>
 </div>
 
 <script>
     const socket = io();
-    const name = prompt("Seu nome:") || "Jogador";
-    socket.emit('joinGame', name);
+    socket.emit('joinGame', prompt("Seu nome:") || "Jogador");
 
     socket.on('updatePlayers', (ps) => {
         const me = ps.find(p => p.id === socket.id);
         if(me && me.isHost) document.getElementById('start-btn').style.display = 'block';
-        const sl = document.getElementById('score-list');
-        sl.innerHTML = ps.map(p => `<div>${p.name}: ${p.lives}❤️</div>`).join('');
+        document.getElementById('score-list').innerHTML = ps.map(p => `<div>${p.name}: ${p.lives}❤️</div>`).join('');
     });
 
-    socket.on('receiveHand', (hand) => {
+    socket.on('receiveHand', (data) => {
         const h1 = document.getElementById('h1');
         h1.innerHTML = '';
-        hand.forEach(c => {
+        // REGRA: Oculta se for a primeira rodada
+        const shouldHide = (data.currentCards === 1);
+        data.hand.forEach(c => {
             const el = document.createElement('div');
-            el.className = `card ${(c.s==='♥'||c.s==='♦') ? 'red' : ''}`;
-            el.innerHTML = `<div class="rank">${c.v}</div><div class="center">${c.s}</div><div class="suit-mini">${c.s}</div>`;
+            el.className = `card ${shouldHide ? 'hidden-back' : ''} ${(c.s==='♥'||c.s==='♦') ? 'red' : ''}`;
+            if(!shouldHide) el.innerHTML = `<div class="rank">${c.v}</div><div class="center">${c.s}</div><div class="suit-mini">${c.s}</div>`;
             el.onclick = () => socket.emit('playCard', { card: c });
             h1.appendChild(el);
         });
@@ -68,8 +57,8 @@
 
     socket.on('cardPlayed', (data) => {
         const el = document.createElement('div');
-        el.className = `card ${(data.card.s==='♥'||data.card.s==='♦') ? 'red' : ''}`;
-        el.innerHTML = `<div class="rank">${data.card.v}</div><div class="center">${data.card.s}</div><div class="suit-mini">${data.card.s}</div>`;
+        el.className = 'card';
+        el.innerHTML = `<div class="center">${data.card.s}</div>`;
         document.getElementById('table-area').appendChild(el);
     });
 
@@ -82,8 +71,8 @@
         }
     });
 
-    socket.on('clearTable', () => { document.getElementById('table-area').innerHTML = ''; });
-    socket.on('statusUpdate', (m) => { document.getElementById('status-bar').innerText = m; });
+    socket.on('clearTable', () => document.getElementById('table-area').innerHTML = '');
+    socket.on('statusUpdate', (m) => document.getElementById('status-bar').innerText = m);
 </script>
 </body>
 </html>

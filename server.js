@@ -63,12 +63,6 @@ io.on('connection', (socket) => {
             }
         }
     });
-
-    socket.on('disconnect', () => {
-        players = players.filter(p => p.id !== socket.id);
-        if (players.length > 0 && !players.find(p => p.isHost)) players[0].isHost = true;
-        io.emit('updatePlayers', players);
-    });
 });
 
 function startNewRound() {
@@ -85,7 +79,8 @@ function startNewRound() {
         p.won = 0;
         p.bidDone = false;
         for(let i=0; i<currentCards; i++) p.hand.push(deck.pop());
-        io.to(p.id).emit('receiveHand', p.hand);
+        // Enviando currentCards para o cliente decidir se esconde ou mostra
+        io.to(p.id).emit('receiveHand', { hand: p.hand, currentCards: currentCards });
     });
 
     turnIdx = roundStarter;
