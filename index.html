@@ -1,0 +1,28 @@
+<script>
+    const socket = io();
+    let isHost = false;
+
+    socket.on('updatePlayers', (serverPlayers) => {
+        const p = serverPlayers.find(x => x.id === socket.id);
+        if (p && p.isHost) {
+            isHost = true;
+            document.getElementById('host-controls').style.display = 'block';
+        }
+        // ... resto da renderização do placar ...
+    });
+
+    function hostStart() {
+        socket.emit('hostStartGame');
+    }
+
+    // Recebendo as cartas reais do servidor
+    socket.on('receiveHand', (hand) => {
+        myHand = hand;
+        renderMyHand();
+        document.getElementById('status-bar').innerText = "Cartas recebidas! Faça sua aposta.";
+    });
+</script>
+
+<div id="host-controls" style="display:none; padding: 10px;">
+    <button onclick="hostStart()" style="background: #28a745;">INICIAR PARTIDA (HOST)</button>
+</div>
