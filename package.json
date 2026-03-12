@@ -18,5 +18,9 @@
   "bugs": {
     "url": "https://github.com/vovoveio/fdp-multiplayer/issues"
   },
-  "homepage": "https://github.com/vovoveio/fdp-multiplayer#readme"
+  "homepage": "https://github.com/vovoveio/fdp-multiplayer#readme",
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3"
+  }
 }
