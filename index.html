@@ -3,123 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FDP - Feedback Edition (Multiplayer)</title>
+    <title>FDP - Feedback Edition (Multiplayer Online)</title>
     <style>
-        /* SEU CSS EXATAMENTE COMO VOCÊ FEZ */
+        /* CSS MANTIDO 100% INTACTO */
         :root {
             --bg-gradient: radial-gradient(circle, #1a472a 0%, #05140a 100%);
             --gold: #ffd700;
             --card-back: repeating-linear-gradient(45deg, #1a2a6c, #1a2a6c 10px, #b21f1f 10px, #b21f1f 20px);
         }
-
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #050f09;
-            color: white;
-            margin: 0;
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        #sidebar {
-            width: 240px;
-            background: rgba(0,0,0,0.9);
-            border-right: 2px solid var(--gold);
-            display: flex;
-            flex-direction: column;
-            z-index: 100;
-        }
-
+        body { font-family: 'Segoe UI', sans-serif; background: #050f09; color: white; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 240px; background: rgba(0,0,0,0.9); border-right: 2px solid var(--gold); display: flex; flex-direction: column; z-index: 100; }
         #scoreboard { padding: 15px; border-bottom: 1px solid #333; }
         #chat-box { flex-grow: 1; padding: 10px; font-size: 13px; overflow-y: auto; background: #000; color: #aaa; }
-
         #main-game { flex-grow: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
         #status-bar { width: 100%; background: rgba(0,0,0,0.8); padding: 15px; text-align: center; font-size: 18px; color: var(--gold); font-weight: bold; min-height: 25px; }
-
-        #game-board {
-            position: relative;
-            width: 90%;
-            max-width: 900px;
-            height: 70vh;
-            margin: 20px;
-            border: 12px solid #3d2b1f;
-            border-radius: 180px;
-            background: var(--bg-gradient);
-            box-shadow: inset 0 0 100px #000;
-        }
-
-        .player-slot { 
-            position: absolute; 
-            width: 180px; 
-            text-align: center; 
-            padding: 10px;
-            border-radius: 15px;
-            transition: all 0.3s ease;
-            background: rgba(0,0,0,0.4);
-        }
-
-        .active-turn { 
-            background: rgba(255, 215, 0, 0.2);
-            box-shadow: 0 0 20px var(--gold);
-            transform: scale(1.1);
-            z-index: 10;
-        }
-
+        #game-board { position: relative; width: 90%; max-width: 900px; height: 70vh; margin: 20px; border: 12px solid #3d2b1f; border-radius: 180px; background: var(--bg-gradient); box-shadow: inset 0 0 100px #000; }
+        .player-slot { position: absolute; width: 180px; text-align: center; padding: 10px; border-radius: 15px; transition: all 0.3s ease; background: rgba(0,0,0,0.4); }
+        .active-turn { background: rgba(255, 215, 0, 0.2); box-shadow: 0 0 20px var(--gold); transform: scale(1.1); z-index: 10; }
         #p1 { bottom: 10px; left: 50%; transform: translateX(-50%); }
         #p2 { right: 10px; top: 50%; transform: translateY(-50%); }
         #p3 { top: 10px; left: 50%; transform: translateX(-50%); }
         #p4 { left: 10px; top: 50%; transform: translateY(-50%); }
-
         .info-box { font-size: 12px; margin-bottom: 5px; }
         .bet-done { color: #00ff00; font-weight: bold; margin-left: 5px; }
-
         .hand { display: flex; justify-content: center; height: 90px; perspective: 1000px; }
-        .card {
-            width: 60px;
-            height: 85px;
-            background: white;
-            border-radius: 6px;
-            color: #222;
-            position: relative;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.6);
-            cursor: pointer;
-            transition: transform 0.2s;
-            flex-shrink: 0;
-            border: 1px solid #999;
-        }
-
+        .card { width: 60px; height: 85px; background: white; border-radius: 6px; color: #222; position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); cursor: pointer; transition: transform 0.2s; flex-shrink: 0; border: 1px solid #999; }
         .hand .card:not(:first-child) { margin-left: -35px; }
         .hand .card:hover { transform: translateY(-15px); z-index: 100 !important; }
-
         .card.red { color: #cc0000; }
         .card.hidden-back { background: var(--card-back); border: 2px solid white; cursor: default;}
         .card .rank { position: absolute; top: 2px; left: 5px; font-size: 16px; font-weight: bold; }
         .card .center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; }
         .card .suit-mini { position: absolute; bottom: 2px; right: 5px; font-size: 14px; }
-
-        #table-area {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 400px;
-            height: 200px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .played-card {
-            position: absolute;
-            animation: throwCard 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
-            cursor: default;
-        }
-
-        @keyframes throwCard {
-            0% { transform: scale(0.2) rotate(0deg); opacity: 0; }
-            100% { transform: scale(1) rotate(var(--rot)); opacity: 1; }
-        }
-
+        #table-area { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 400px; height: 200px; display: flex; justify-content: center; align-items: center; }
+        .played-card { position: absolute; animation: throwCard 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards; cursor: default; }
+        @keyframes throwCard { 0% { transform: scale(0.2) rotate(0deg); opacity: 0; } 100% { transform: scale(1) rotate(var(--rot)); opacity: 1; } }
         #controls { padding: 10px; z-index: 100; display: flex; flex-direction: column; align-items: center;}
         button { padding: 12px 25px; background: var(--gold); border: none; font-weight: bold; cursor: pointer; border-radius: 8px; box-shadow: 0 4px #b89b00; margin-bottom: 5px;}
         .bet-btn { margin: 3px; font-size: 16px; display: inline-block; }
@@ -136,7 +54,7 @@
 </div>
 
 <div id="main-game">
-    <div id="status-bar">Conectando ao servidor...</div>
+    <div id="status-bar">Conectando...</div>
     <div id="game-board">
         <div id="p1" class="player-slot"><div class="info-box" id="i1"></div><div class="hand" id="h1"></div></div>
         <div id="p2" class="player-slot"><div class="info-box" id="i2"></div><div class="hand" id="h2"></div></div>
@@ -151,9 +69,7 @@
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-
 <script>
-    // --- SISTEMA DE ÁUDIO ORIGINAL MANTIDO ---
     const au = new (window.AudioContext || window.webkitAudioContext)();
     function sfx(f, t, d) {
         if(au.state === 'suspended') au.resume();
@@ -162,40 +78,20 @@
         o.connect(g); g.connect(au.destination); o.start(); o.stop(au.currentTime + d);
     }
 
-    // --- CONEXÃO MULTIPLAYER ---
     const socket = io();
     let myId = null; 
     let localGameState = null;
 
-    socket.on('init', (id) => {
-        myId = id;
-        if (myId === -1) {
-            document.getElementById('status-bar').innerText = "Você está como Espectador";
-        }
-    });
-
-    socket.on('play_sfx', (data) => {
-        sfx(data.freq, data.type, data.dur);
-    });
+    socket.on('init', (id) => { myId = id; });
+    socket.on('play_sfx', (data) => sfx(data.freq, data.type, data.dur));
 
     socket.on('state_update', (gameState) => {
         localGameState = gameState;
-        
-        // Atualiza a barra de status
         document.getElementById('status-bar').innerText = gameState.statusMsg;
+        document.getElementById('start-btn').style.display = (!gameState.isGameRunning && myId !== -1) ? 'block' : 'none';
 
-        // Esconde ou mostra o botão de Start
-        if (!gameState.isGameRunning && myId !== -1) {
-            document.getElementById('start-btn').style.display = 'block';
-        } else {
-            document.getElementById('start-btn').style.display = 'none';
-        }
-
-        // Atualiza o destaque de quem é a vez
         document.querySelectorAll('.player-slot').forEach(s => s.classList.remove('active-turn'));
-        if(gameState.activePlayer !== null) {
-            document.getElementById(`p${gameState.activePlayer+1}`).classList.add('active-turn');
-        }
+        if(gameState.activePlayer !== null) document.getElementById(`p${gameState.activePlayer+1}`).classList.add('active-turn');
 
         render(gameState);
         renderTable(gameState.tableCards);
@@ -207,56 +103,51 @@
         for(let i=0; i<=localGameState.currentCards; i++) {
             if(i===forbidden) continue;
             let b = document.createElement('button');
-            b.className = 'bet-btn';
-            b.innerText = i;
-            b.onclick = () => { 
-                socket.emit('submit_bid', i); 
-                zone.innerHTML = ''; 
-            };
+            b.className = 'bet-btn'; b.innerText = i;
+            b.onclick = () => { socket.emit('submit_bid', i); zone.innerHTML = ''; };
             zone.appendChild(b);
         }
     });
 
     socket.on('request_card', () => {
-        // Habilita o clique nas próprias cartas
         if (myId === -1) return;
-        const h = document.getElementById(`h${myId+1}`);
-        const cards = h.querySelectorAll('.card');
+        const cards = document.querySelectorAll(`#h${myId+1} .card`);
         cards.forEach((c, i) => {
             c.onclick = () => {
-                // Remove o onclick para não clicar duas vezes
                 cards.forEach(card => card.onclick = null);
                 socket.emit('play_card', i);
             };
         });
     });
 
-    function startGame() {
-        socket.emit('start_game');
-    }
+    function startGame() { socket.emit('start_game'); }
 
     function render(gameState) {
         gameState.players.forEach((p, i) => {
             const info = document.getElementById(`i${i+1}`);
-            let indicator = (p.id === myId) ? " (Você)" : "";
-            info.innerHTML = `<b>${p.name}${indicator}</b> ${p.hasBetted ? '<span class="bet-done">✅</span>' : ''}<br>
+            info.innerHTML = `<b>${p.name}${p.id === myId ? " (Você)" : ""}</b> ${p.hasBetted ? '<span class="bet-done">✅</span>' : ''}<br>
                               <span style="color:#ff5555">❤️ ${p.lives}</span> | Aposta: ${p.bid} | Fez: ${p.won}`;
             
             const h = document.getElementById(`h${i+1}`);
             h.innerHTML = '';
-            if (p.lives <= 0) { info.innerHTML = `${p.name} ELIMINADO`; return; }
+            if (p.lives <= 0) { info.innerHTML = "ELIMINADO"; return; }
 
             p.hand.forEach((c, idx) => {
                 const el = document.createElement('div');
                 const isRed = (c.s === '♥' || c.s === '♦');
                 
-                // Esconde a carta se não for você, a menos que seja final de jogo revelando tudo
-                let hide = (p.id !== myId); 
+                // --- RESTAURAÇÃO DA SUA LÓGICA ORIGINAL ---
+                let hide;
+                if (gameState.currentCards === 1) {
+                    // Na rodada 1: Você (myId) NÃO vê a sua, mas vê a dos outros (bot ou amigos)
+                    hide = (p.id === myId);
+                } else {
+                    // Nas outras rodadas: Você vê a sua e NÃO vê a dos outros
+                    hide = (p.id !== myId);
+                }
                 
                 el.className = `card ${isRed ? 'red' : ''} ${hide ? 'hidden-back' : ''}`;
-                if(!hide) {
-                    el.innerHTML = `<div class="rank">${c.v}</div><div class="center">${c.s}</div><div class="suit-mini">${c.s}</div>`;
-                }
+                if(!hide) el.innerHTML = `<div class="rank">${c.v}</div><div class="center">${c.s}</div><div class="suit-mini">${c.s}</div>`;
                 h.appendChild(el);
             });
         });
